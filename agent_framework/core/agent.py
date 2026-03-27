@@ -1,11 +1,11 @@
 # agent_framework/core/agent.py
+import json
 import re
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from .llm import LLM
 from .message import Message, MessageRole
-from .tool import ToolRegistry
 from .executor import ActionExecutor
 from .memory import SummarizationMemory
 
@@ -28,7 +28,6 @@ def _parse_thought_output(text: str) -> tuple[Optional[str], Optional[str], Opti
     action_name = action_match.group(1).strip() if action_match else None
     action_args = None
     if args_match:
-        import json
         try:
             action_args = json.loads(args_match.group(1).strip())
         except Exception:
@@ -88,7 +87,7 @@ class ReActAgent(BaseAgent):
             turns += 1
             response = self.llm.generate(messages)
 
-            thought, action, args = _parse_thought_output(response)
+            _, action, args = _parse_thought_output(response)
 
             if action == "FINAL_ANSWER":
                 match = re.search(r"Final Answer[:\s]*(.+)", response, re.DOTALL | re.IGNORECASE)
@@ -134,7 +133,7 @@ class PlanAndExecuteAgent(BaseAgent):
             messages.append(Message(role=MessageRole.ASSISTANT, content=step_response))
 
             # 尝试从响应中提取工具调用
-            thought, action, args = _parse_thought_output(step_response)
+            _, action, args = _parse_thought_output(step_response)
             if action and action != "FINAL_ANSWER":
                 result = self.executor.run(action, args or {})
                 messages.append(Message(role=MessageRole.TOOL_RESULT, content=result))
