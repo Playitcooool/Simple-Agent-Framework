@@ -12,6 +12,7 @@ A lightweight Agent development framework written in pure Python. No external fr
 - **装饰器工具注册**：`@tool` 简单直观
 - **摘要记忆**：自动压缩对话历史节省 token
 - **层级多 Agent**：Supervisor 委托子 Agent 协作
+- **内置工具**：Bash、文件读写等常用工具开箱即用
 
 ---
 
@@ -235,13 +236,21 @@ result = supervisor.run("Write a report about AI trends")
 
 ---
 
-## 测试 | Testing
+## 示例 | Examples
+
+See `examples/` directory for runnable examples:
 
 ```bash
-pytest tests/ -v
+# Basic usage
+OPENAI_API_KEY=sk-... python examples/01_basic_usage.py
+
+# Built-in tools (Bash, Read, Write)
+OPENAI_API_KEY=sk-... python examples/02_built_in_tools.py
 ```
 
 ---
+
+## 测试 | Testing
 
 ## 扩展 | Extending
 
@@ -257,6 +266,35 @@ class AnthropicLLM(LLM):
     def generate(self, messages: list[Message]) -> str:
         # Implement Anthropic API call
         return response_text
+```
+
+### 内置工具
+
+框架内置常用工具（位于 `agent_framework.tools`）：
+
+```python
+from agent_framework import AgentFramework, OpenAILLM
+from agent_framework.tools import BashTool, ReadFileTool, WriteFileTool
+
+fw = AgentFramework(llm=OpenAILLM(api_key="..."))
+
+# Bash command
+bash = BashTool(cwd="/tmp", timeout=10)
+@fw.tool(name="bash", description="Run shell command")
+def bash_cmd(command: str) -> str:
+    return bash.run(command)
+
+# Read file
+read_tool = ReadFileTool(base_dir="/tmp")
+@fw.tool(name="read", description="Read a file")
+def read_cmd(path: str) -> str:
+    return read_tool.run(path)
+
+# Write file
+write_tool = WriteFileTool(base_dir="/tmp")
+@fw.tool(name="write", description="Write to a file")
+def write_cmd(path: str, content: str) -> str:
+    return write_tool.run(path, content)
 ```
 
 ### 添加工具
