@@ -6,40 +6,166 @@ A lightweight Agent development framework written in pure Python. No external fr
 
 ## 框架简介 | Framework Overview
 
-一个从零实现的轻量级 Agent 开发框架，纯 Python 编写，无外部框架依赖。
-
-A lightweight Agent framework implemented from scratch in pure Python with no external framework dependencies.
-
-### 核心特性 | Key Features
-
-| 特性 / Feature | 描述 / Description |
-|----------------|-------------------|
-| **双执行模式 / Dual Execution Modes** | ReAct (Thought → Action → Observation) 和 Plan-and-Execute (规划 → 执行) |
-| **装饰器工具注册 / Decorator-based Tool Registration** | `@tool` 装饰器，简单直观 / Simple and intuitive |
-| **摘要记忆 / Summarization Memory** | 自动对对话历史做摘要，节省 token / Automatic conversation summarization |
-| **层级多 Agent 协作 / Hierarchical Multi-Agent** | SupervisorAgent 委托子 Agent / Supervisor delegates to sub-agents |
-| **链式调用入口 / Chainable Entry Point** | `agent.run("task")` 一行调用 / One-line interface |
+纯 Python 实现的轻量级 Agent 开发框架，支持：
+- **ReAct 模式**：Thought → Action → Observation 循环
+- **Plan-and-Execute 模式**：先规划后执行
+- **装饰器工具注册**：`@tool` 简单直观
+- **摘要记忆**：自动压缩对话历史节省 token
+- **层级多 Agent**：Supervisor 委托子 Agent 协作
 
 ---
 
-## 安装 | Installation
+## 架构图 | Architecture
 
-```bash
-pip install -e .
+```
+┌─────────────────────────────────────────────────────┐
+│                   AgentFramework                     │
+│               (agent.run("task"))                    │
+└─────────────────────┬───────────────────────────────┘
+                      │
+          ┌───────────┴───────────┐
+          │                     │
+    ┌─────▼─────┐         ┌─────▼─────┐
+    │  ReActAgent │         │ PlanAnd   │
+    │            │         │ Execute    │
+    └─────┬─────┘         └─────┬─────┘
+          │                     │
+          └─────────┬───────────┘
+                    │
+         ┌──────────▼──────────┐
+         │    ActionExecutor     │
+         │  (executes tools)    │
+         └──────────┬──────────┘
+                    │
+         ┌──────────▼──────────┐
+         │   ToolRegistry      │
+         │ @tool decorators    │
+         └─────────────────────┘
 ```
 
-或者直接使用（无需安装）：
+---
 
-```bash
-export OPENAI_API_KEY="your-api-key"
-python -c "from agent_framework import *; ..."
+## 核心工作流 | Core Workflows
+
+### ReAct Agent
+
+```
+User: "What's the weather in Beijing?"
+         │
+         ▼
+┌────────────────────────┐
+│  Build messages        │
+│  (system + memory +    │
+│   user task)          │
+└───────────┬────────────┘
+            │
+            ▼
+┌────────────────────────┐
+│  LLM.generate()        │◄──────────────────┐
+│  Response:             │                    │
+│  "Thought: I should... │                    │
+│   Action: weather      │
+│   Action Args: {...}"   │                    │
+└───────────┬────────────┘                    │
+            │                                   │
+            ▼                                   │
+    ┌───────────────┐    Yes                   │
+    │ Has Action?   │────────────────────────►│
+    └───────┬───────┘                          │
+            │ No                               │
+            ▼                                   │
+    ┌───────────────┐                          │
+    │ Has Final     │    Yes                   │
+    │ Answer?       │──────────┐               │
+    └───────┬───────┘          │               │
+            │ No               │               │
+            ▼                   ▼               │
+    ┌───────────────┐  ┌──────────────┐        │
+    │ Execute tool  │  │ Return      │        │
+    │ via Executor  │  │ answer       │────────┘
+    └───────┬───────┘  └──────────────┘
+            │
+            ▼
+    ┌───────────────┐
+    │ Add result to │
+    │ messages      │
+    └───────┬───────┘
+            │
+            └────────────────── (loop back to LLM)
 ```
 
-Or use directly (no installation required):
+### Plan-and-Execute Agent
 
-```bash
-export OPENAI_API_KEY="your-api-key"
-python -c "from agent_framework import *; ..."
+```
+User: "Write a report about AI"
+         │
+         ▼
+┌─────────────────────────┐
+│  PHASE 1: PLANNING      │
+│  LLM generates:         │
+│  "Step 1: Research AI   │
+│   Step 2: Outline       │
+│   Step 3: Write"        │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  PHASE 2: EXECUTION      │
+│                         │
+│  For each step:         │
+│    LLM decides action    │
+│    Execute tool          │
+│    Collect result        │
+└───────────┬─────────────┘
+            │
+            ▼
+┌─────────────────────────┐
+│  PHASE 3: SYNTHESIS      │
+│  LLM combines all       │
+│  results into final       │
+│  answer                  │
+└───────────┬─────────────┘
+            │
+            ▼
+       Final Answer
+```
+
+### SupervisorAgent (Multi-Agent)
+
+```
+User: "Write and publish a blog post"
+         │
+         ▼
+┌─────────────────────────────────────┐
+│  SupervisorAgent.run()              │
+│                                      │
+│  1. DECOMPOSE                        │
+│     "Subtask 1: Research             │
+│      Subtask 2: Write                │
+│      Subtask 3: Publish"             │
+└───────────────┬─────────────────────┘
+                │
+                ▼
+┌─────────────────────────────────────┐
+│  2. DISPATCH                         │
+│                                      │
+│  Subtask 1 ──► Researcher Agent      │
+│  Subtask 2 ──► Writer Agent         │
+│  Subtask 3 ──► Publisher Agent      │
+│                                      │
+│  (Each agent.run() independently)   │
+└───────────────┬─────────────────────┘
+                │
+                ▼
+┌─────────────────────────────────────┐
+│  3. SYNTHESIZE                       │
+│                                      │
+│  LLM combines all subtask results   │
+│  into cohesive final answer          │
+└───────────────┬─────────────────────┘
+                │
+                ▼
+           Final Answer
 ```
 
 ---
@@ -49,7 +175,7 @@ python -c "from agent_framework import *; ..."
 ```python
 from agent_framework import AgentFramework, OpenAILLM
 
-# Initialize with OpenAI
+# Initialize
 fw = AgentFramework(llm=OpenAILLM(api_key="your-api-key"))
 
 # Register a tool
@@ -62,66 +188,48 @@ result = fw.run("What's the weather in Beijing?")
 print(result)
 ```
 
-### 指定执行模式 | Specify Execution Mode
+### 选择执行模式 | Choose Execution Mode
 
 ```python
-# ReAct mode (default) - Thought → Action → Observation loop
+# ReAct (default) — good for most tasks
 fw = AgentFramework(llm=llm, mode="react")
 
-# Plan-and-Execute mode - Plan first, then execute
+# Plan-and-Execute — better for complex multi-step tasks
 fw = AgentFramework(llm=llm, mode="plan")
 ```
 
 ---
 
-## 架构 | Architecture
+## 目录结构 | Project Structure
 
 ```
 agent_framework/
-├── __init__.py              # Public API exports
-├── framework.py             # AgentFramework entry point
+├── __init__.py          # Public API: AgentFramework, LLM, OpenAILLM, Message, @tool
+├── framework.py          # AgentFramework entry point
 ├── core/
-│   ├── llm.py              # LLM abstract class + OpenAI adapter
-│   ├── message.py           # Message / MessageRole
-│   ├── tool.py              # @tool decorator + ToolRegistry
-│   ├── executor.py          # ActionExecutor
-│   ├── memory.py            # SummarizationMemory
-│   └── agent.py            # BaseAgent + ReActAgent + PlanAndExecuteAgent
+│   ├── llm.py           # LLM abstract class + OpenAI adapter
+│   ├── message.py       # Message dataclass + MessageRole enum
+│   ├── tool.py          # @tool decorator + ToolRegistry
+│   ├── executor.py      # ActionExecutor — runs tools
+│   ├── memory.py        # SummarizationMemory
+│   └── agent.py         # BaseAgent, ReActAgent, PlanAndExecuteAgent
 └── multi/
-    └── supervisor.py        # SupervisorAgent
+    └── supervisor.py    # SupervisorAgent
 ```
-
-### 核心组件 | Core Components
-
-| 组件 / Component | 文件 / File | 说明 / Description |
-|-----------------|-------------|-------------------|
-| `LLM` | `core/llm.py` | Abstract base class for LLM adapters |
-| `OpenAILLM` | `core/llm.py` | OpenAI Chat Completions API adapter |
-| `Message` | `core/message.py` | Message dataclass with role and content |
-| `@tool` | `core/tool.py` | Decorator for registering tools |
-| `SummarizationMemory` | `core/memory.py` | Memory with periodic summarization |
-| `ReActAgent` | `core/agent.py` | ReAct loop agent |
-| `PlanAndExecuteAgent` | `core/agent.py` | Plan-and-execute agent |
-| `SupervisorAgent` | `multi/supervisor.py` | Multi-agent orchestrator |
 
 ---
 
-## 多 Agent 协作 | Multi-Agent Collaboration
+## 多 Agent 协作 | Multi-Agent
 
 ```python
 from agent_framework.multi import SupervisorAgent
-from agent_framework import AgentFramework, OpenAILLM
 
-# Create sub-agents
-research_agent = ReActAgent(llm=llm, executor=executor)
-writer_agent = ReActAgent(llm=llm, executor=executor)
-research_agent.name = "researcher"
-writer_agent.name = "writer"
+researcher = ReActAgent(llm=llm, executor=executor)
+writer = ReActAgent(llm=llm, executor=executor)
+researcher.name = "researcher"
+writer.name = "writer"
 
-# Create supervisor
-supervisor = SupervisorAgent(llm=llm, sub_agents=[research_agent, writer_agent])
-
-# Run collaborative task
+supervisor = SupervisorAgent(llm=llm, sub_agents=[researcher, writer])
 result = supervisor.run("Write a report about AI trends")
 ```
 
@@ -142,19 +250,19 @@ pytest tests/ -v
 ```python
 from agent_framework.core.llm import LLM
 
-class MyLLM(LLM):
+class AnthropicLLM(LLM):
     def __init__(self, api_key: str):
         self.api_key = api_key
 
     def generate(self, messages: list[Message]) -> str:
-        # Implement your LLM API call here
+        # Implement Anthropic API call
         return response_text
 ```
 
-### 添加更多工具
+### 添加工具
 
 ```python
-@fw.tool(name="my_tool", description="Description of my tool")
+@fw.tool(name="my_tool", description="Does something useful")
 def my_tool(arg1: str, arg2: int) -> str:
     return f"Result: {arg1}, {arg2}"
 ```
