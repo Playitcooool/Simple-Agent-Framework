@@ -13,8 +13,8 @@ MAX_TURNS_DEFAULT = 50
 
 def _parse_thought_output(text: str) -> tuple[Optional[str], Optional[str], Optional[dict]]:
     """
-    从 LLM 输出中解析 Thought / Action / Action Args。
-    返回 (thought, action_name, action_args)
+    Parses Thought / Action / Action Args from LLM output.
+    Returns (thought, action_name, action_args)
     """
     thought_match = re.search(r"Thought[:\s]*(.+?)(?=\n(?:Action|Final Answer)|$)", text, re.DOTALL | re.IGNORECASE)
     thought = thought_match.group(1).strip() if thought_match else ""
@@ -36,7 +36,7 @@ def _parse_thought_output(text: str) -> tuple[Optional[str], Optional[str], Opti
     return thought, action_name, action_args
 
 class BaseAgent(ABC):
-    """Agent 基类"""
+    """Base Agent class"""
 
     def __init__(
         self,
@@ -77,7 +77,7 @@ class BaseAgent(ABC):
         return messages
 
 class ReActAgent(BaseAgent):
-    """ReAct 模式的 Agent: Thought → Action → Observation 循环"""
+    """ReAct mode Agent: Thought -> Action -> Observation loop"""
 
     def run(self, task: str) -> str:
         messages = self._get_messages(task)
@@ -100,30 +100,30 @@ class ReActAgent(BaseAgent):
                 messages.append(Message(role=MessageRole.ASSISTANT, content=response))
                 messages.append(Message(role=MessageRole.TOOL_RESULT, content=result))
             else:
-                # 无法解析出 action，直接返回
+                # Unable to parse action, return raw response
                 self.memory.add(Message(role=MessageRole.ASSISTANT, content=response))
                 return response
 
         return "Max turns reached without final answer."
 
 class PlanAndExecuteAgent(BaseAgent):
-    """Plan-and-Execute 模式: 先规划，再执行"""
+    """Plan-and-Execute mode: plan first, then execute"""
 
     def run(self, task: str) -> str:
         messages = self._get_messages(task)
 
-        # 1. 规划阶段
+        # 1. Planning phase
         plan_response = self.llm.generate(messages)
 
-        # 解析步骤
+        # Parse steps
         step_matches = re.findall(r"Step \d+[:\s]*(.+?)(?=(?:Step \d+)|$)", plan_response, re.DOTALL | re.IGNORECASE)
         steps = [s.strip() for s in step_matches if s.strip()]
 
         if not steps:
-            # 无法解析计划，退化为直接执行
+            # Unable to parse plan, fall back to direct execution
             steps = [task]
 
-        # 2. 执行阶段
+        # 2. Execution phase
         execution_results: List[str] = []
         messages.append(Message(role=MessageRole.ASSISTANT, content=plan_response))
 
@@ -132,7 +132,7 @@ class PlanAndExecuteAgent(BaseAgent):
             step_response = self.llm.generate(messages + [step_msg])
             messages.append(Message(role=MessageRole.ASSISTANT, content=step_response))
 
-            # 尝试从响应中提取工具调用
+            # Try to extract tool call from response
             _, action, args = _parse_thought_output(step_response)
             if action and action != "FINAL_ANSWER":
                 result = self.executor.run(action, args or {})
@@ -141,7 +141,7 @@ class PlanAndExecuteAgent(BaseAgent):
             else:
                 execution_results.append(step_response)
 
-        # 3. 汇总
+        # 3. Synthesize
         synthesize_prompt = (
             f"Original task: {task}\n"
             f"Execution results:\n" + "\n".join(f"- {r}" for r in execution_results)

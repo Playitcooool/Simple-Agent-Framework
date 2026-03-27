@@ -1,7 +1,0 @@
-pyproject.toml
-agent_framework.egg-info/PKG-INFO
-agent_framework.egg-info/SOURCES.txt
-agent_framework.egg-info/dependency_links.txt
-agent_framework.egg-info/top_level.txt
-agent_framework/core/message.py
-tests/test_message.py

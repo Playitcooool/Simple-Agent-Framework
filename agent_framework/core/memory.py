@@ -10,7 +10,7 @@ DEFAULT_SUMMARY_PROMPT = (
 
 class SummarizationMemory:
     """
-    对话记忆：定期对历史消息做摘要，节省 token。
+    Conversation memory with periodic summarization to save tokens.
     """
 
     def __init__(
@@ -31,7 +31,7 @@ class SummarizationMemory:
             self._summarize()
 
     def get_messages(self) -> List[Message]:
-        """返回摘要（如果有）+ 最近消息"""
+        """Returns summary (if any) followed by recent messages"""
         result: List[Message] = []
         if self.summary:
             result.append(Message(
@@ -48,4 +48,4 @@ class SummarizationMemory:
         content = "\n".join(f"[{m.role.value}] {m.content or ''}" for m in self.messages)
         prompt = self.summary_prompt.format(content=content)
         self.summary = self.llm.generate([Message(role=MessageRole.USER, content=prompt)])
-        self.messages = []  # 摘要后清除原始消息
+        self.messages = []  # Clear original messages after summarization

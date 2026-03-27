@@ -8,7 +8,7 @@ DEFAULT_OPENAI_URL = "https://api.openai.com/v1/chat/completions"
 
 
 class LLMError(Exception):
-    """LLM API 调用错误"""
+    """Error during LLM API calls"""
     pass
 
 

@@ -5,9 +5,9 @@ from .core.memory import SummarizationMemory
 
 class AgentFramework:
     """
-    框架入口，提供链式调用 agent.run()。
+    Framework entry point providing chainable agent.run() interface.
 
-    使用示例:
+    Usage example:
         fw = AgentFramework(llm=OpenAILLM(api_key="..."))
         result = fw.run("What is the weather in Beijing?")
     """
@@ -15,16 +15,16 @@ class AgentFramework:
     def __init__(self, llm: LLM, mode: str = "react", max_turns: int = 50):
         """
         Args:
-            llm: LLM 实例
-            mode: "react" 或 "plan"
-            max_turns: 最大循环次数
+            llm: LLM instance
+            mode: "react" or "plan"
+            max_turns: Maximum number of loop iterations
         """
         self.llm = llm
         self.mode = mode
         self.max_turns = max_turns
 
     def run(self, task: str) -> str:
-        """同步执行任务"""
+        """Synchronously execute a task"""
         registry = get_registry()
         executor = ActionExecutor(registry)
         memory = SummarizationMemory(llm=self.llm)

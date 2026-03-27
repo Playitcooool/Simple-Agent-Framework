@@ -9,7 +9,8 @@ from ..core.agent import BaseAgent
 
 class SupervisorAgent:
     """
-    主 Agent：接收任务，拆解为子任务，委托给子 Agent 执行，汇总结果。
+    Master Agent: receives tasks, decomposes into subtasks,
+    delegates to sub-agents, and synthesizes results.
     """
 
     def __init__(self, llm: LLM, sub_agents: List[BaseAgent]):
@@ -19,7 +20,7 @@ class SupervisorAgent:
         self.sub_agents = {a.name: a for a in sub_agents}
 
     def run(self, task: str) -> str:
-        # 1. LLM 分解任务
+        # 1. LLM decomposes the task
         decompose_prompt = (
             f"Break down the following task into subtasks, one per line, "
             f"each starting with 'Subtask N: '.\n"
@@ -30,14 +31,14 @@ class SupervisorAgent:
             Message(role=MessageRole.USER, content=decompose_prompt)
         ])
 
-        # 解析子任务行
+        # Parse subtask lines
         subtask_lines = re.findall(
             r"Subtask \d+[:\s]+(.+?)(?:\n|$)", plan_response, re.DOTALL
         )
         if not subtask_lines:
             subtask_lines = [task]
 
-        # 2. 分发给子 Agent
+        # 2. Dispatch to sub-agents
         results: List[str] = []
         for line in subtask_lines:
             agent_name = self._select_agent(line)
@@ -46,7 +47,7 @@ class SupervisorAgent:
             result = self.sub_agents[agent_name].run(line.strip())
             results.append(result)
 
-        # 3. LLM 汇总
+        # 3. LLM synthesizes
         synthesize_prompt = (
             f"Original task: {task}\n\n"
             f"Subtask results:\n" + "\n".join(f"- {r}" for r in results) + "\n\n"
@@ -56,7 +57,7 @@ class SupervisorAgent:
         return final
 
     def _select_agent(self, subtask: str) -> str:
-        """简单按子任务关键词选择 Agent"""
+        """Select an agent based on subtask keywords"""
         subtask_lower = subtask.lower()
         for name in self.sub_agents:
             if name.lower() in subtask_lower:

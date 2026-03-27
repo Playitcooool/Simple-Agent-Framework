@@ -10,7 +10,7 @@ class Tool:
     fn: Callable
 
 class ToolRegistry:
-    """全局工具注册表"""
+    """Global tool registry"""
     def __init__(self):
         self.tools: dict[str, Tool] = {}
 
@@ -26,11 +26,11 @@ class ToolRegistry:
     def clear(self) -> None:
         self.tools.clear()
 
-# 全局单例
+# Global singleton registry
 _global_registry = ToolRegistry()
 
 def tool(name: str = None, description: str = None):
-    """装饰器：把函数注册为工具"""
+    """Decorator: registers a function as a tool"""
     def decorator(fn: Callable) -> Callable:
         tool_name = name or fn.__name__
         tool_desc = description or (fn.__doc__ or "").strip()

@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from .tool import ToolRegistry, Tool
 
 class ActionExecutor:
-    """执行工具调用的组件"""
+    """Executes tool calls"""
     def __init__(self, registry: "ToolRegistry"):
         self.registry = registry
 
