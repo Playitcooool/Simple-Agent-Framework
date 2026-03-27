@@ -18,3 +18,8 @@ def test_framework_run_plan():
     fw = AgentFramework(llm=FakeLLM("Step 1: 6*7\nStep 2: answer\nSummary: 42"), mode="plan")
     result = fw.run("What is 6 * 7?")
     assert "42" in result
+
+def test_framework_unknown_mode():
+    fw = AgentFramework(llm=FakeLLM("response"), mode="invalid")
+    with pytest.raises(ValueError, match="Unknown mode"):
+        fw.run("test task")

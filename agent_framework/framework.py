@@ -1,5 +1,3 @@
-from typing import Optional
-
 from .core.llm import LLM
 from .core.agent import BaseAgent, ReActAgent, PlanAndExecuteAgent
 from .core.tool import get_registry, ActionExecutor
