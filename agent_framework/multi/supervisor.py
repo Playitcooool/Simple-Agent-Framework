@@ -13,6 +13,8 @@ class SupervisorAgent:
     """
 
     def __init__(self, llm: LLM, sub_agents: List[BaseAgent]):
+        if not sub_agents:
+            raise ValueError("SupervisorAgent has no sub_agents")
         self.llm = llm
         self.sub_agents = {a.name: a for a in sub_agents}
 
@@ -39,10 +41,9 @@ class SupervisorAgent:
         results: List[str] = []
         for line in subtask_lines:
             agent_name = self._select_agent(line)
-            if agent_name in self.sub_agents:
-                result = self.sub_agents[agent_name].run(line.strip())
-            else:
-                result = f"[No agent for: {line.strip()}]"
+            if agent_name not in self.sub_agents:
+                raise ValueError(f"No sub-agent found for subtask: {line.strip()}")
+            result = self.sub_agents[agent_name].run(line.strip())
             results.append(result)
 
         # 3. LLM 汇总
