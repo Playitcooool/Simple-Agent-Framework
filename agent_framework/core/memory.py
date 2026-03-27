@@ -42,7 +42,7 @@ class SummarizationMemory:
         return result
 
     def _should_summarize(self) -> bool:
-        return len(self.messages) > self.max_messages_before_summary
+        return len(self.messages) >= self.max_messages_before_summary
 
     def _summarize(self) -> None:
         content = "\n".join(f"[{m.role.value}] {m.content or ''}" for m in self.messages)

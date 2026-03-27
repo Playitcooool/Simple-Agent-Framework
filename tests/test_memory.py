@@ -28,7 +28,7 @@ def test_memory_add_and_get():
 
 def test_memory_summarize_trigger():
     llm = FakeLLMForMemory(summary_response="Summarized conversation.")
-    mem = SummarizationMemory(llm=llm, max_messages_before_summary=1)
+    mem = SummarizationMemory(llm=llm, max_messages_before_summary=2)
 
     mem.add(Message(role=MessageRole.USER, content="msg1"))
     mem.add(Message(role=MessageRole.ASSISTANT, content="msg2"))
