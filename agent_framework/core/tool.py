@@ -1,9 +1,6 @@
 from typing import Callable, Any, Optional
 from dataclasses import dataclass
 
-# Re-export ActionExecutor for convenience
-from .executor import ActionExecutor
-
 @dataclass
 class Tool:
     name: str
@@ -23,6 +20,9 @@ class ToolRegistry:
 
     def list_tools(self) -> list[Tool]:
         return list(self.tools.values())
+
+    def clear(self) -> None:
+        self.tools.clear()
 
 # 全局单例
 _global_registry = ToolRegistry()
