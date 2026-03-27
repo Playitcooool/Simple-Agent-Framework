@@ -37,13 +37,20 @@ def test_plan_agent():
     def search(query: str) -> str:
         return f"Results for {query}"
 
+    # PlanAndExecuteAgent.run() makes 4 LLM calls:
+    # 1. plan generation
+    # 2. execute step 1 (tool call)
+    # 3. execute step 2 (no tool needed)
+    # 4. synthesize
     llm = FakeLLM(responses=[
         'Step 1: search for "AI"\nStep 2: summarize results',  # plan
-        'Summary: AI is great.',  # synthesize
+        'Thought: search\nAction: search\nAction Args: {"query": "AI"}',  # execute step 1 (tool call)
+        'Summary: AI is great.',  # execute step 2 (no tool)
+        'AI is a transformative technology.',  # synthesize
     ])
     registry = get_registry()
     executor = ActionExecutor(registry)
     agent = PlanAndExecuteAgent(llm=llm, executor=executor, max_turns=10)
 
     result = agent.run("Tell me about AI")
-    assert "great" in result
+    assert "transformative" in result  # from synthesize response
