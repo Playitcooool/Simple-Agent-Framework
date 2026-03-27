@@ -1,6 +1,8 @@
 from typing import Callable, Any, Optional
 from dataclasses import dataclass
 
+from .executor import ActionExecutor
+
 @dataclass
 class Tool:
     name: str
