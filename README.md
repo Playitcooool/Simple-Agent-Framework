@@ -207,6 +207,7 @@ fw = AgentFramework(llm=llm, mode="plan")
 agent_framework/
 ├── __init__.py          # Public API: AgentFramework, LLM, OpenAILLM, Message, @tool
 ├── framework.py          # AgentFramework entry point
+├── cli.py                # Interactive chat CLI
 ├── core/
 │   ├── llm.py           # LLM abstract class + OpenAI adapter
 │   ├── message.py       # Message dataclass + MessageRole enum
@@ -214,8 +215,16 @@ agent_framework/
 │   ├── executor.py      # ActionExecutor — runs tools
 │   ├── memory.py        # SummarizationMemory
 │   └── agent.py         # BaseAgent, ReActAgent, PlanAndExecuteAgent
-└── multi/
-    └── supervisor.py    # SupervisorAgent
+├── multi/
+│   └── supervisor.py    # SupervisorAgent
+└── tools/
+    ├── bash.py          # BashTool — execute shell commands
+    ├── file.py          # ReadFileTool, WriteFileTool
+    ├── search.py        # SearchTool — grep-like text search
+    ├── list_dir.py      # ListDirTool — ls-like directory listing
+    ├── web_search.py    # WebSearchTool — web search via Tavily
+    ├── calculator.py    # CalculatorTool — safe math evaluation
+    └── datetime_tool.py # DateTimeTool — date/time utilities
 ```
 
 ---
@@ -248,6 +257,13 @@ OPENAI_API_KEY=sk-... python examples/01_basic_usage.py
 OPENAI_API_KEY=sk-... python examples/02_built_in_tools.py
 ```
 
+### 交互式 CLI
+
+```bash
+# Chat with the agent via CLI
+OPENAI_API_KEY=sk-... TAVILY_API_KEY=tvly-... python -m agent_framework.cli
+```
+
 ---
 
 ## 测试 | Testing
@@ -274,7 +290,11 @@ class AnthropicLLM(LLM):
 
 ```python
 from agent_framework import AgentFramework, OpenAILLM
-from agent_framework.tools import BashTool, ReadFileTool, WriteFileTool
+from agent_framework.tools import (
+    BashTool, ReadFileTool, WriteFileTool,
+    SearchTool, ListDirTool, WebSearchTool,
+    CalculatorTool, DateTimeTool
+)
 
 fw = AgentFramework(llm=OpenAILLM(api_key="..."))
 
@@ -295,6 +315,35 @@ write_tool = WriteFileTool(base_dir="/tmp")
 @fw.tool(name="write", description="Write to a file")
 def write_cmd(path: str, content: str) -> str:
     return write_tool.run(path, content)
+
+# Search in files
+search_tool = SearchTool(base_dir="/tmp")
+@fw.tool(name="search", description="Search text in files")
+def search_cmd(pattern: str, path: str = ".") -> str:
+    return search_tool.run(pattern, path)
+
+# List directory
+ls_tool = ListDirTool(base_dir="/tmp")
+@fw.tool(name="ls", description="List directory contents")
+def ls_cmd(path: str = ".") -> str:
+    return ls_tool.run(path)
+
+# Web search (requires Tavily API key)
+@fw.tool(name="web_search", description="Search the web")
+def web_search_cmd(query: str, max_results: int = 5) -> str:
+    return WebSearchTool().run(query, max_results)
+
+# Calculator
+calc_tool = CalculatorTool()
+@fw.tool(name="calculator", description="Calculate math expression")
+def calc_cmd(expression: str) -> str:
+    return calc_tool.run(expression)
+
+# DateTime
+dt_tool = DateTimeTool()
+@fw.tool(name="datetime", description="Get current datetime")
+def datetime_cmd(format: str = "%Y-%m-%d %H:%M:%S") -> str:
+    return dt_tool.run(format)
 ```
 
 ### 添加工具
